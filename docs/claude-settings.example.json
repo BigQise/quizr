@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(bun install)",
+      "Bash(bun install --frozen-lockfile)",
+      "Bash(bunx expo *)",
+      "Bash(bunx jest *)",
+      "Bash(bunx playwright *)",
+      "Bash(bunx drizzle-kit generate)",
+      "Bash(bunx prettier *)",
+      "Bash(bunx eslint *)",
+      "Bash(adb devices)",
+      "Bash(adb shell *)",
+      "Bash(maestro test *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "bun scripts/hooks/format-changed.mjs" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "bun scripts/hooks/typecheck-gate.mjs" }]
+      }
+    ]
+  }
+}

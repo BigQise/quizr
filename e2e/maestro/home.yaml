@@ -1,0 +1,20 @@
+# Smoke test: the app opens in Expo Go, opens its database, and shows the library.
+#
+# NOT YET RUN: Maestro is not installed on the development machine.
+#
+# Needs the dev server running (see the verify-app skill) and Expo Go on the
+# emulator. 10.0.2.2 is how the Android emulator reaches the host machine.
+#
+#   bun run e2e:android
+appId: host.exp.exponent
+---
+- launchApp:
+    stopApp: true
+- openLink: exp://10.0.2.2:8081
+- extendedWaitUntil:
+    visible:
+      id: 'home-screen'
+    timeout: 60000
+- assertVisible: 'Quizr'
+# This text only appears after SQLite has opened, migrated, and been queried.
+- assertVisible: 'No study sets yet.'
