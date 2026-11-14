@@ -1,5 +1,5 @@
-import { HomeScreen } from '@/features/sets/HomeScreen';
+import { LibraryScreen } from '@/features/sets/LibraryScreen';
 
-export default function IndexRoute() {
-  return <HomeScreen />;
+export default function Route() {
+  return <LibraryScreen />;
 }

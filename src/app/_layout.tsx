@@ -8,6 +8,9 @@ import { DatabaseProvider } from '@/data/DatabaseProvider';
 import { Screen } from '@/ui/Screen';
 import { useTheme } from '@/ui/theme';
 
+// One broken screen shows a recovery page instead of a blank app.
+export { ErrorScreen as ErrorBoundary } from '@/ui/ErrorScreen';
+
 export default function RootLayout() {
   const theme = useTheme();
 

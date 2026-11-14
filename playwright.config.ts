@@ -14,6 +14,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // The first page load compiles SQLite's WebAssembly. With several browsers
+  // starting at once that can take longer than Playwright's default 5 seconds.
+  expect: { timeout: 15_000 },
+  // The longest scenarios reload the app several times and run about 15
+  // seconds alone; in a full parallel run they can pass the default 30.
+  timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',

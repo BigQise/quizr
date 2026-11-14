@@ -59,9 +59,22 @@ bun run build:web
 bun run e2e:web
 ```
 
-Playwright serves `dist/` with `scripts/serve-dist.mjs` (a plain static server, no special headers) and runs every spec at phone and tablet-landscape sizes. Rebuild before rerunning: the tests run against `dist/`, not your working tree.
+Playwright serves `dist/` with `scripts/serve-dist.mjs` (a plain static server, no special headers) and runs every spec at phone and tablet-landscape sizes. Rebuild before rerunning: the tests run against `dist/`, not your working tree. A full run is about two minutes.
 
 The database on web lives in the browser's origin private file system. Each Playwright test gets a fresh browser context, so each starts with an empty database.
+
+## 3b. Look at it
+
+Passing tests do not mean the screen looks right. Two visual bugs (overlapping card faces, a label wrapping mid-word) passed every behavioural test and were only caught in screenshots.
+
+The browser pane cannot take screenshots while it is hidden, so use Playwright:
+
+1. Write a temporary spec in `e2e/web/` (so it can import `./helpers`) that walks to the screens you changed and calls `page.screenshot({ path })`, saving into the scratchpad.
+2. Run it with `bunx playwright test <name>`. It runs at both sizes; put `info.project.name` in the file name.
+3. Read the PNG files and check them.
+4. Delete the temporary spec.
+
+Selectors: Expo Router keeps earlier screens mounted but hidden. An id that exists on more than one screen (`back-button`, `card-count`, `set-screen`) matches twice; use `shown(page, id)` from `e2e/web/helpers.ts`.
 
 ## 4. Android emulator
 
@@ -104,7 +117,15 @@ adb shell am force-stop host.exp.exponent
 
 Then reopen with `adb shell am start -a android.intent.action.VIEW -d "exp://<host>:8081" host.exp.exponent`, using the `exp://` address printed in the log.
 
-When finished, stop the dev server (find the process listening on 8081 and end it).
+Things that went wrong here before:
+
+- **Reopening the app by hand:** use `exp://10.0.2.2:8081` (the emulator's alias for this machine). The LAN address the CLI prints timed out from the emulator.
+- **Expo Go's floating "Tools" button** sits over the top-right of the header in development and swallows taps aimed at header buttons. Tap near the top edge of the button, or open the app with the CLI's own URL, which disables it (`?__expo_disable_fab=1`).
+- **`adb shell input text` did not reach text fields** on a freshly cold-booted emulator, so typing and anything after it could not be exercised with `adb`. Do not report those flows as verified on Android unless you saw them work.
+- **A cold boot is slow.** "System UI isn't responding" dialogs appear for the first minute; tap Wait.
+- Wrap `adb` calls in `timeout`: `screencap` and `uiautomator dump` can hang.
+
+When finished, stop the dev server (find the process listening on 8081 and end it) and close the emulator with `adb emu kill`.
 
 For tablet sizes use the `Resizable_Experimental` emulator.
 
