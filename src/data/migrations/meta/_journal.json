@@ -8,6 +8,20 @@
       "when": 1794599747411,
       "tag": "0000_public_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794603287979,
+      "tag": "0001_v1_study_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794603296597,
+      "tag": "0002_spaced_repetition",
+      "breakpoints": true
     }
   ]
 }

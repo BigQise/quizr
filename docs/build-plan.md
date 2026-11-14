@@ -216,9 +216,9 @@ Build the working environment before any feature.
 | SQLite on web                  | Pass, after switching to the async API (section 1)                                                                                 |
 | Android emulator               | Pass in Expo Go on `Pixel_9_API_35`, first launch and relaunch. Native debug build fails (section 1)                               |
 | Maestro flow                   | Written, never run: Maestro is not installed                                                                                       |
-| CI                             | Workflow written, never run: the repo has no remote                                                                                |
+| CI                             | Pass: first run on GitHub Actions, both jobs green (typecheck, lint, unit tests; web build and browser tests)                      |
 | Hooks and permissions          | Scripts written and tested by hand. `.claude/settings.json` was not created; its content is in `docs/claude-settings.example.json` |
-| First commit, rename to `main` | Not done                                                                                                                           |
+| First commit, rename to `main` | Done: `b80f8f2`, pushed to `origin/main`                                                                                           |
 | iOS                            | Not verified: no simulator on Windows                                                                                              |
 
 ### Phase 1: Core engines and data layer
@@ -454,14 +454,69 @@ None of these block Phase 0.
 
 ## 9. Progress
 
-- [ ] Phase 0: Scaffold and harness
-- [ ] Phase 1: Core engines and data layer
-- [ ] Phase 2: Flashcards UI
-- [ ] Phase 3: Learn UI
-- [ ] Phase 4: Test UI
-- [ ] Phase 4.5: Hardening (v1)
-- [ ] Phase 5: Spaced repetition
+- [x] Phase 0: Scaffold and harness
+- [x] Phase 1: Core engines and data layer
+- [x] Phase 2: Flashcards UI
+- [x] Phase 3: Learn UI
+- [x] Phase 4: Test UI
+- [ ] Phase 4.5: Hardening (v1): partly done, see section 10
+- [x] Phase 5: Spaced repetition
 - [ ] Phase 6: Distribution (optional)
+
+---
+
+## 10. What was built (status on 2026-11-13)
+
+Phases 1 to 5 were built in one pass on the `build/v1` branch. This section records what exists, how it was verified, and where it differs from the plan above. Where this section and an earlier one disagree, this one is current.
+
+### Verified
+
+| Check                               | Result                                                                                                                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run check`                     | Pass: typecheck (app and e2e), lint, 159 unit tests                                                                                                                                           |
+| Engine invariants (section 7.2)     | Pass: all listed invariants are property tests                                                                                                                                                |
+| Repositories                        | Pass: 23 tests run the real SQL and the real migrations on an in-memory SQLite                                                                                                                |
+| Upgrade from a v1 database          | Pass: tested in `sqliteRepos.test.ts`                                                                                                                                                         |
+| Web end to end                      | Pass: 31 Playwright scenarios at phone (375×812) and tablet landscape (1024×768), 62 runs. The full suite passed three times in a row after a reload race was fixed                           |
+| Visual check                        | Screenshots of every main screen at both sizes were read. Two bugs found and fixed (card faces overlapping; a button label wrapping mid-word)                                                 |
+| Android (Expo Go, Pixel 9 emulator) | Partly: the app boots, the database opens and migrates, the library renders, navigation works. Typing and the study flows were **not** exercised: `adb` text input did not reach the emulator |
+
+### Not verified or not done
+
+- **iOS:** never run. There is no simulator on Windows.
+- **Android study flows:** see above. Maestro is still not installed.
+- **Native debug build:** still blocked by the Windows path limit (section 1).
+- **UI performance budgets (section 7.5):** cold start, list scrolling, and animation frame rate were not measured. The engine budgets are asserted in Jest with looser limits than the table (500 ms for a 100-question test, 50 ms per Learn question, 2 s for a 2,000-card import) so that slow CI machines do not fail.
+- **Screen-reader pass:** labels, roles, and hidden-face handling are in the code, but no screen reader was run.
+- **Hardware-keyboard shortcuts** work on web only. Native builds have no global key events without an extra native module.
+- **Leaving a test** is confirmed for the in-app back button and Android's back button. The browser's own back button and closing the tab are not intercepted.
+- **Spaced-repetition stretch goals** (daily reminder, retention chart) were not built.
+- **Timer auto-submit** is implemented but has no automated test.
+- **CI** has not run on this branch.
+
+### Differences from the plan
+
+| Plan                                                | What was built                                                                                              | Why                                                                                                                                                                 |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Drizzle ORM queries                                 | Plain SQL in `src/data/sqliteRepos.ts`. Drizzle's schema file is kept only to generate migrations           | The sync-only Drizzle driver cannot be used on web (section 1); plain SQL over a five-method interface is also what lets Jest run the same queries on `node:sqlite` |
+| In-memory repository for tests                      | Real repositories on an in-memory SQLite (`createTestRepos()`)                                              | Tests the actual SQL and migrations instead of a second implementation                                                                                              |
+| Reanimated and Gesture Handler for the card         | React Native's built-in `Animated` (native driver) and the responder system                                 | Fewer moving parts; the flip is a two-property animation and the swipe is a threshold check. Both libraries remain installed for Expo Router                        |
+| FlashList                                           | `FlatList`                                                                                                  | Virtualised and sufficient; not measured against the 5,000-card budget                                                                                              |
+| `useReducer` for sessions                           | Learn uses `useState` plus the pure reducer, so each event can also trigger saving and logging in one place | Simpler than effects reacting to state                                                                                                                              |
+| ts-fsrs 5.4.x                                       | 5.4.2, pinned with `~`                                                                                      | Version 6 replaced the API; 5.4 is the one the plan was written against                                                                                             |
+| Typed routes                                        | Turned off                                                                                                  | The generated types only refresh while the dev server runs, which made type checks depend on local state                                                            |
+| One phase per session, plan mode, subagent builders | One continuous session, no subagents                                                                        | The owner asked to build everything at once                                                                                                                         |
+
+### Behaviour worth knowing
+
+- **Learn** needs two right answers per card (recognition, then written), so a set of N cards takes at least 2N questions. "I was correct" is offered only for typed answers.
+- **Learn on missed cards** (from a test result) is a separate, unsaved session and does not change the set's Learn progress.
+- **Test** counts cards, not items: a matching block of five pairs is five questions. With fewer than two matching pairs allocated, that card goes to another type.
+- **Spaced repetition** never shows a card before it is due, including cards rated "Again" a minute ago. The screen says when the next card comes back.
+- **The daily new-card limit** is shared across all sets and counts cards first studied since local midnight.
+- **Backup** is a full copy of every table as JSON. Restore replaces everything, inside one transaction, and refuses files that are not Quizr backups.
+- **Sample data** buttons exist in Settings in development builds only.
+- **Saving is immediate but not instant.** Every action starts its save in the same tick, and the write finishes a few milliseconds later. If the app or tab is killed inside that window, that one last action can be lost; nothing earlier is affected. On web the `<html>` element carries `data-quizr-busy` while any storage operation is running, which is what the end-to-end tests wait on before reloading.
 
 ---
 
